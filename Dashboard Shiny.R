@@ -1,7 +1,3 @@
-
-# ---------------------------
-# Install & load packages if missing
-# ---------------------------
 pkgs <- c("shiny","shinydashboard","DT","shinycssloaders","randomForest","dplyr","ggplot2","patchwork","tidyr","naniar","vcd","reshape2","pROC")
 for (p in pkgs) if(!requireNamespace(p, quietly = TRUE)) install.packages(p, dependencies = TRUE)
 
@@ -19,9 +15,6 @@ library(vcd)
 library(reshape2)
 library(pROC)
 
-# ---------------------------
-# User dataset path (adjust if needed)
-# ---------------------------
 data_path <- "mushrooms.csv"
 data <- read.csv(data_path, stringsAsFactors = FALSE)
 head(data)
@@ -34,9 +27,6 @@ if(!is.factor(data$Class)){
   data$Class <- factor(data$Class, levels = c("e","p"), labels = c("edible","poisonous"))
 }
 
-# ---------------------------
-# Category mapping (provided)
-# ---------------------------
 cat_map <- list(
   gill.color = c("black"="k","brown"="n","buff"="b","chocolate"="h","gray"="g","green"="r","orange"="o","pink"="p","purple"="u","red"="e","white"="w","yellow"="y"),
   ring.type = c("evanescent"="e","flaring"="f","large"="l","none"="n","pendant"="p"),
@@ -54,9 +44,6 @@ cat_map <- list(
 
 top12_features <- names(cat_map)
 
-# ---------------------------
-# Helper to match feature keys to actual column names (handles -, ., _ variants)
-# ---------------------------
 find_colname <- function(key, df_names){
   if(key %in% df_names) return(key)
   alt1 <- gsub("\\.", "-", key); if(alt1 %in% df_names) return(alt1)
@@ -74,17 +61,11 @@ for(col in names(data)){
   if(!is.factor(data[[col]]) && is.character(data[[col]])) data[[col]] <- as.factor(data[[col]])
 }
 
-# ---------------------------
-# Build Random Forest model (using available features)
-# ---------------------------
 predictors <- unname(unlist(feature_col_map[available_features]))
 if(length(predictors) == 0) stop("Tidak menemukan fitur top12 pada dataset. Periksa nama kolom CSV.")
 rf_formula <- as.formula(paste("Class ~", paste(predictors, collapse = "+")))
 rf_model <- randomForest(rf_formula, data = data, ntree = 100, na.action = na.omit)
 
-# ---------------------------
-# Full feature rank table (from your data)
-# ---------------------------
 full_feature_rank <- data.frame(
   Feature = c("gill-color","ring-type","spore-print-color","gill-size","bruises",
               "stalk-surface-above-ring","odor","stalk-root","stalk-surface-below-ring",
@@ -98,12 +79,6 @@ full_feature_rank <- data.frame(
 )
 feature_rank <- full_feature_rank %>% filter(Feature %in% top12_features)
 
-# ---------------------------
-# Model performance summary (user-supplied)
-# ---------------------------
-# ---------------------------
-# Model performance summary (fixed: all use Holdout & KFold)
-# ---------------------------
 model_results <- data.frame(
   Model = c("Logistic Regression","Random Forest","XGBoost"),
   
@@ -124,9 +99,6 @@ model_results <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# ---------------------------
-# Variable explanation table (full 22 variables, Indonesian + code meanings)
-# ---------------------------
 vars_desc <- data.frame(
   Variable = c(
     "class","cap-shape","cap-surface","cap-color","bruises","odor","gill-attachment",
@@ -217,9 +189,6 @@ vars_desc <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# ---------------------------
-# Earthy color palette (expanded)
-# ---------------------------
 earthyPalette <- c("#556B2F","#8F9779","#6B8E23","#A0522D","#C2B280","#D2B48C","#7B3F00","#3B5323")
 names(earthyPalette) <- NULL
 
@@ -257,7 +226,6 @@ ui <- dashboardPage(
                 
                 # ========================== Row Atas: Gambar + Judul ==========================
                 fluidRow(
-                  # ---- Gambar kiri ----
                   column(
                     width = 4, align = "center",
                     tags$img(
@@ -271,8 +239,6 @@ ui <- dashboardPage(
                     "
                     )
                   ),
-                  
-                  # ---- Judul kanan ----
                   column(
                     width = 8,
                     tags$div(
@@ -367,10 +333,10 @@ ui <- dashboardPage(
                     )
                   )
                 )
-            ) # end div
-          ) # end box
-        ) # end fluidRow
-      ), # end tabItem HOME
+            )
+          )
+        )
+      ),
       
       # DATASET preview
       tabItem(tabName = "data",
@@ -387,14 +353,12 @@ ui <- dashboardPage(
         tabName = "doc",
         fluidRow(
           column(
-            width = 10, offset = 1,   # ← supaya tidak mepet kiri
+            width = 10, offset = 1,
             box(
               width = 12,
               title = "Penjelasan Dataset",
               status = "primary",
               solidHeader = TRUE,
-              
-              # ------------------- Accordion -------------------
               tags$details(
                 style = "margin-bottom:20px; font-size:16px;",
                 tags$summary("Penjelasan lengkap dataset (klik untuk membuka)", style="cursor:pointer; font-weight:600;"),
@@ -419,7 +383,6 @@ ui <- dashboardPage(
                 )
               ),
               
-              # ------------------- Tabel Ringkas -------------------
               h4("Tabel ringkas: Variabel | Tipe | Sampel nilai"),
               br(),
               DTOutput("vars_table")
@@ -428,8 +391,6 @@ ui <- dashboardPage(
         )
       ),
 
-      
-      # EDA & Visualisasi (digabung) - large panels
       tabItem(tabName = "eda",
               fluidRow(
                 box(width = 12, title = "Visualisasi & EDA (Pilih Variabel untuk Visualisasi Lebih Lanjut)",
@@ -447,8 +408,6 @@ ui <- dashboardPage(
               )
       ),
 
-      
-      # Feature importance + Model Performance (DIGABUNG)
       tabItem(
         tabName = "feat_model",
         fluidRow(
@@ -478,7 +437,6 @@ ui <- dashboardPage(
               tags$b("Catatan:"),
               p("Skor 1.00 pada Random Forest dan XGBoost tidak selalu menandakan overfitting. Dataset jamur bersifat highly separable, karena atribut morfologi seperti odor, spore-print-color, dan gill-size memiliki distribusi yang sangat berbeda antara kelas edible dan poisonous. Model tree-based mampu menangkap pola ini secara sempurna, baik pada holdout maupun validasi silang. Logistic Regression sedikit lebih rendah karena pendekatan linier tidak sepenuhnya menangkap interaksi antar fitur kategorikal.")
             ),
-            # ===============================
             
             h4("Mengapa memilih Random Forest?"),
             p(
@@ -515,10 +473,9 @@ ui <- dashboardPage(
               plotOutput("rf_roc", height = "340px")
             )
             
-          ) # box
-        ) # fluidRow
-      ), # tabItem
-      
+          )
+        )
+      ),
       
       # Prediction (own tab)
       tabItem(tabName = "pred",
@@ -545,9 +502,6 @@ ui <- dashboardPage(
               status = "primary",
               solidHeader = TRUE,
               
-              # =============================
-              # FOTO UTAMA (HEADER)
-              # =============================
               div(
                 style = "
           width: 100%;
@@ -568,10 +522,7 @@ ui <- dashboardPage(
           "
                 )
               ),
-              
-              # =============================
-              # BAGIAN NAMA AUTHOR
-              # =============================
+
               div(
                 style = "
           text-align: center;
@@ -621,9 +572,7 @@ ui <- dashboardPage(
   )
 )
 
-# ---------------------------
 # SERVER
-# ---------------------------
 server <- function(input, output, session){
   
   output$total_rows_card <- renderUI({
@@ -686,10 +635,7 @@ server <- function(input, output, session){
     req(input$tabs == "doc")
     datatable(vars_desc, options = list(pageLength = 10, scrollX = TRUE))
   })
-  
-  # ---------------------------
-  # EDA panels (NO stacked plot)
-  # ---------------------------
+
   output$edaPanels <- renderPlot({
     req(input$tabs == "eda")
     req(input$eda_var)
@@ -746,15 +692,10 @@ server <- function(input, output, session){
       labs(title = paste("Cramér's V:", var, "vs other categorical vars"),
            x = "Variable", y = "Cramér's V")
     
-    # Gabungkan semua panel (sekarang 4 plot saja)
     layout <- (p1 / p2 / p3 / p4) + plot_layout(ncol = 1, heights = rep(1,4))
     layout
   })
   
-  
-  # Feature importance plots & table
-  # ---------------------------
-  # MI plot (all 22 features)
   output$miPlot <- renderPlot({
     req(input$tabs == "feat_model")
     fr <- full_feature_rank
@@ -786,8 +727,7 @@ server <- function(input, output, session){
     top12 <- full_feature_rank %>% arrange(desc(MI)) %>% head(12)
     datatable(top12, options = list(pageLength = 12, scrollX = TRUE))
   })
-  
-  
+   
   # Model performance table
   output$model_table <- renderDT({
     req(input$tabs == "feat_model")
@@ -884,5 +824,6 @@ server <- function(input, output, session){
 
 # Run app
 shinyApp(ui, server)
+
 
 
